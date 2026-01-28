@@ -1,0 +1,68 @@
+/* Eliminar marcos blancos y mejorar diseño */
+.layout-page {
+    padding: 0 !important;
+}
+
+.layout-content {
+    padding: 1rem !important;
+}
+
+/* Eliminar bordes y sombras de tarjetas */
+.card, .box, .s-box {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+/* Tabla sin marcos */
+.table-wrapper {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Botones más compactos */
+.btn-group {
+    gap: 0.25rem;
+}
+
+/* Header de página */
+.page-header {
+    padding: 1rem 0 !important;
+    margin-bottom: 1rem !important;
+}
+
+/* Eliminar padding innecesario */
+.box-body, .card-body {
+    padding: 0.5rem !important;
+}
+
+/* Mejorar tabla */
+.table {
+    background: var(--dark-bg, #1e293b) !important;
+}
+
+.table thead th {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: transparent !important;
+}
+
+.table tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.table tbody tr:hover {
+    background: rgba(14, 165, 233, 0.1) !important;
+}
+
+/* Eliminar espacios en contenedor principal */
+main.layout-page {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Ajustar contenido */
+.layout-page > .layout-content {
+    max-width: 100% !important;
+    padding: 1rem !important;
+}
