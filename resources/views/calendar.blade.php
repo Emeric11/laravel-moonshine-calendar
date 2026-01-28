@@ -365,35 +365,84 @@
         let primeraCarga = true;
 
         let selectedEventId = null;
+        
+        // ==================== POLLING MEJORADO ====================
+        let ultimoTimestamp = Date.now();
+        let notificacionesHabilitadas = false;
+        
+        // Solicitar permisos de notificaciones al cargar
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission().then(permission => {
+                notificacionesHabilitadas = (permission === 'granted');
+                if (notificacionesHabilitadas) {
+                    showToast('🔔 Notificaciones habilitadas', 'success');
+                }
+            });
+        } else if (Notification.permission === 'granted') {
+            notificacionesHabilitadas = true;
+        }
+        
         async function pollingEventos() {
             try {
                 const res = await fetch('/api/calendar/events');
                 const eventos = await res.json();
 
                 let nuevos = 0;
+                let modificados = 0;
 
                 eventos.forEach(ev => {
                     const id = String(ev.id);
+                    const timestamp = new Date(ev.updated_at || ev.created_at).getTime();
+                    
                     if (!eventosCargados.has(id)) {
                         eventosCargados.add(id);
-                        if (!primeraCarga) nuevos++;
+                        if (!primeraCarga) {
+                            nuevos++;
+                            // Notificación del navegador
+                            mostrarNotificacionNativa(
+                                `📦 Nueva OP: ${ev.title}`,
+                                `Cliente: ${ev.extendedProps?.cliente || 'N/A'}\nEstado: ${ev.extendedProps?.estado || 'pendiente'}`
+                            );
+                        }
+                    } else if (timestamp > ultimoTimestamp && !primeraCarga) {
+                        modificados++;
+                        mostrarNotificacionNativa(
+                            `✏️ OP Modificada: ${ev.title}`,
+                            `Actualizada: ${new Date(timestamp).toLocaleString('es-ES')}`
+                        );
                     }
                 });
 
-                if (nuevos > 0) {
-                    showToast(`📢 ${nuevos} nuevo(s) evento(s)`, 'info');
+                if (nuevos > 0 || modificados > 0) {
+                    const mensaje = [];
+                    if (nuevos > 0) mensaje.push(`${nuevos} nuevo(s)`);
+                    if (modificados > 0) mensaje.push(`${modificados} actualizado(s)`);
+                    
+                    showToast(`📢 ${mensaje.join(', ')} evento(s)`, 'info');
                     calendar.refetchEvents();
-                    console(eventos);
                 }
-                calendar.refetchEvents();
-                // 🔥 LIMPIA Y RECARGA
-                //calendar.getEvents().forEach(e => e.remove());
-
-
+                
+                ultimoTimestamp = Date.now();
                 primeraCarga = false;
 
             } catch (e) {
-                console.warn('Polling falló');
+                console.warn('Polling falló:', e);
+            }
+        }
+        
+        function mostrarNotificacionNativa(titulo, mensaje) {
+            if (notificacionesHabilitadas && 'Notification' in window) {
+                try {
+                    new Notification(titulo, {
+                        body: mensaje,
+                        icon: '/favicon.ico',
+                        badge: '/favicon.ico',
+                        tag: 'calendario-evento',
+                        requireInteraction: false
+                    });
+                } catch (e) {
+                    console.warn('Error mostrando notificación:', e);
+                }
             }
         }
         // ==================== UTILIDADES: Toasts y escape ====================
@@ -1581,8 +1630,8 @@ function limpiarVistaPdf() {
             });
 
             calendar.render();
-            // polling
-            setInterval(pollingEventos, 20000);
+            // Polling mejorado: cada 10 segundos
+            setInterval(pollingEventos, 10000);
             updateTodayEvents();
             resetToNewEvent();
         });

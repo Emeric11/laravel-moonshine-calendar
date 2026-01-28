@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
+use App\Notifications\CalendarEventNotification;
+use MoonShine\Laravel\Models\MoonshineUser;
 class CalendarEventController extends Controller
 {
 
@@ -55,6 +57,9 @@ class CalendarEventController extends Controller
             }
 
             $event->save();
+
+            // Notificar a todos los usuarios
+            $this->notifyPdfUpload($event);
 
             return response()->json([
                 'success' => true,
@@ -280,6 +285,25 @@ public function destroy($id)
         } catch (\Exception $e) {
             Log::error('Error updateDateTime: ' . $e->getMessage());
             return response()->json(['success' => false], 500);
+        }
+    }
+
+    /**
+     * Notificar PDF subido
+     */
+    private function notifyPdfUpload(CalendarEvent $event): void
+    {
+        try {
+            $currentUser = auth('moonshine')->user();
+            $userName = $currentUser?->name ?? 'Sistema';
+
+            $users = MoonshineUser::where('id', '!=', $currentUser?->id ?? 0)->get();
+
+            foreach ($users as $user) {
+                $user->notify(new CalendarEventNotification($event, 'pdf_uploaded', $userName));
+            }
+        } catch (\Exception $e) {
+            Log::error("Error notificando PDF: " . $e->getMessage());
         }
     }
 }

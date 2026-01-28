@@ -5,9 +5,31 @@ namespace App\Observers;
 use App\Models\CalendarEvent;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use App\Notifications\CalendarEventNotification;
+use MoonShine\Laravel\Models\MoonshineUser;
 
 class CalendarEventObserver
 {
+    /**
+     * Handle the CalendarEvent "created" event.
+     */
+    public function created(CalendarEvent $event): void
+    {
+        if ($event->exists && $event->title) {
+            $this->notifyAllUsers($event, 'created');
+        }
+    }
+
+    /**
+     * Handle the CalendarEvent "updated" event.
+     */
+    public function updated(CalendarEvent $event): void
+    {
+        if ($event->exists && $event->wasChanged(['estado', 'fecha_entrega', 'cantidad_req', 'cliente', 'title'])) {
+            $this->notifyAllUsers($event, 'updated');
+        }
+    }
+
     /**
      * Handle the CalendarEvent "saved" event.
      * Se ejecuta después de crear o actualizar
@@ -118,6 +140,9 @@ class CalendarEventObserver
      */
     public function deleting(CalendarEvent $event): void
     {
+        // Notificar antes de eliminar
+        $this->notifyAllUsers($event, 'deleted');
+
         if (!$event->op_number) {
             return;
         }
@@ -140,6 +165,45 @@ class CalendarEventObserver
                 Storage::disk('public')->delete($path);
                 Log::info("Observer: PDF eliminado: {$path}");
             }
+        }
+    }
+
+    /**
+     * Notificar a todos los usuarios de MoonShine
+     */
+    private function notifyAllUsers(CalendarEvent $event, string $action): void
+    {
+        try {
+            // Verificar que el evento tiene datos mínimos
+            if (!$event->exists || !$event->title) {
+                Log::warning("Observer: Evento sin datos suficientes para notificar");
+                return;
+            }
+
+            $currentUser = auth('moonshine')->user();
+            $userName = $currentUser?->name ?? 'Sistema';
+
+            // Obtener todos los usuarios de MoonShine excepto el actual
+            $users = MoonshineUser::where('id', '!=', $currentUser?->id ?? 0)->get();
+
+            if ($users->isEmpty()) {
+                Log::info("Observer: No hay otros usuarios para notificar");
+                return;
+            }
+
+            foreach ($users as $user) {
+                try {
+                    $user->notify(new CalendarEventNotification($event, $action, $userName));
+                } catch (\Exception $e) {
+                    Log::error("Error notificando a usuario {$user->id}: " . $e->getMessage());
+                    // Continuar con los demás usuarios
+                }
+            }
+
+            Log::info("Notificaciones enviadas: {$action} en OP {$event->title} por {$userName}");
+        } catch (\Exception $e) {
+            Log::error("Error en notifyAllUsers: " . $e->getMessage());
+            // No lanzar excepción para no interrumpir el flujo principal
         }
     }
 }

@@ -13,6 +13,7 @@ use App\MoonShine\Resources\CalendarEvent\CalendarEventResource;
 use App\MoonShine\Pages\CalendarPage;
 use MoonShine\MenuManager\MenuItem;
 use MoonShine\AssetManager\Css;
+use MoonShine\Components\Layout\Notifications;
 
 final class MoonShineLayout extends AppLayout
 {
@@ -35,6 +36,18 @@ final class MoonShineLayout extends AppLayout
             ...parent::menu(),
             MenuItem::make(CalendarEventResource::class, 'CalendarEvents'),
             MenuItem::make(CalendarPage::class, '📅 Calendario de Producción'),
+        ];
+    }
+
+    /**
+     * Configurar notificaciones
+     */
+    public function components(): array
+    {
+        return [
+            ...parent::components(),
+            Notifications::make()
+                ->limit(10)
         ];
     }
 
